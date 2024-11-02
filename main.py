@@ -5,8 +5,7 @@ import os
 import re
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chat_models.gigachat import GigaChat
-import requests
-from typing import List, Optional, Union
+from typing import Optional, Union
 import pytesseract
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -197,8 +196,8 @@ def clean_and_merge_text(llist_file_path):
 > Если текст не связный или не имеет смысла, то сделай основную тему предупреждением, а plantuml_code пустой строкой.
 > Переносы строк должны обозначаться СТРОГО через \n. НЕ ОСТАВЛЯЙ ПУСТЫХ СТРОК НА МЕСТЕ ПЕРЕНОСА СТРОК
 > НЕ ЗАБЫВАЙ ЗАКРЫВАТЬ ФИГУРНЫЕ СКОБКИ JSON. ВНИМАТЕЛЬНО ПРОВЕРЯЙ ЕГО ПРАВЕЛЬНОСТЬ!
+> Символ * влияет на уровень, ты можешь использовать не ограниченное их количество для визуализации mindmap
 """
-# > Символ * влияет на уровень, ты можешь использовать не ограниченное их количество для визуализации mindmap
 
     for page in llist_file_path:
         text = page.get('text', '')
@@ -217,34 +216,26 @@ def clean_and_merge_text(llist_file_path):
 
 
 def clean_json_string(json_string):
-    # Define a pattern to match the "plantuml_code" field and capture everything else separately
     pattern = r'"plantuml_code":\s*"([^"]*?)"'
 
-    # Substitute \n only outside "plantuml_code" field
     parts = re.split(pattern, json_string)
 
-    # Rebuild the JSON string with cleaned parts
     cleaned_string = ""
     for i, part in enumerate(parts):
         if i % 2 == 0:
-            # Replace \n with spaces in parts outside "plantuml_code"
             cleaned_string += re.sub(r'\n', ' ', part)
         else:
-            # Keep the content of "plantuml_code" field as is
             cleaned_string += f'"plantuml_code": "{part}"'
 
     return cleaned_string
 
 
 def format_mindmap(text):
-    # Use regular expression to find all instances of stars `*` that are not at the start
     formatted_text = re.sub(r"(\s)\*", r"\n*", text)
 
-    # Ensure the main structure `@startmindmap` and `@endmindmap` are on their own lines
     formatted_text = formatted_text.replace(
         "@startmindmap", "@startmindmap\n").replace("@endumindmap", "\n@endmindmap")
 
-    # Return the formatted string
     return formatted_text
 
 

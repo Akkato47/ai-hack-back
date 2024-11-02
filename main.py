@@ -31,7 +31,7 @@ app.add_middleware(
 
 def send_to_giga(payload):
     chat = GigaChat(credentials="YzdmYmZkYjMtNzgyNS00MTAzLTkxM2QtOTY0ZTdmZmNlZWZkOmEzOWE4MDQ5LTFhMGItNDEwMi04N2MxLTNlZTcwYjQyMmRhNQ==",
-                    scope="GIGACHAT_API_PERS", verify_ssl_certs=False, model="GigaChat")
+                    scope="GIGACHAT_API_PERS", verify_ssl_certs=False, model="GigaChat-Pro")
 
     messages = [
         SystemMessage(
@@ -186,16 +186,17 @@ except Exception as e:
 def clean_and_merge_text(llist_file_path):
     combined_text = []
     prompt = """
-Преобразуй текст в JSON-формат с полями "summary" и "plantuml_code". JSON должен строго соответствовать следующей структуре: 
-> ```json 
+Преобразуй текст в JSON-формат с полями "summary" и "plantuml_code". JSON должен СТРОГО соответствовать следующей структуре: 
+> 
 > { 
 >   "summary": "<основная тема из текста>" 
 >   "plantuml_code": "@startmindmap\n* <основная тема из текста>\n** Ключевой пункт 1\n*** Подпункт 1.1\n*** Подпункт 1.2\n** Ключевой пункт 2\n*** Подпункт 2.1\n**** Детали\n*** Подпункт 2.2\n** Ключевой пункт 3\n*** Подпункт 3.1\n@endmindmap" 
 > } 
-> ``` 
+> 
 > Обрати внимание, что текст и структура JSON должны точно соответствовать образцу. Не добавляй никаких лишних данных, комментариев или объяснений.
 > Если текст не связный или не имеет смысла, то сделай основную тему предупреждением, а plantuml_code пустой строкой.
-> Переносы строк должны обозначаться через \n
+> Переносы строк должны обозначаться СТРОГО через \n. НЕ ОСТАВЛЯЙ ПУСТЫХ СТРОК НА МЕСТЕ ПЕРЕНОСА СТРОК
+> НЕ ЗАБЫВАЙ ЗАКРЫВАТЬ ФИГУРНЫЕ СКОБКИ JSON. ВНИМАТЕЛЬНО ПРОВЕРЯЙ ЕГО ПРАВЕЛЬНОСТЬ!
 """
 # > Символ * влияет на уровень, ты можешь использовать не ограниченное их количество для визуализации mindmap
 
@@ -216,14 +217,35 @@ def clean_and_merge_text(llist_file_path):
 
 
 def clean_json_string(json_string):
-    pattern = r'("plantuml_code":\s*"[^"]*?)\\n([^"]*?")'
+    # Define a pattern to match the "plantuml_code" field and capture everything else separately
+    pattern = r'"plantuml_code":\s*"([^"]*?)"'
 
-    cleaned_string = re.sub(r'\n', ' ', json_string)
+    # Substitute \n only outside "plantuml_code" field
+    parts = re.split(pattern, json_string)
 
-    cleaned_string = re.sub(pattern, lambda m: m.group(
-        1) + '\n' + m.group(2), cleaned_string)
+    # Rebuild the JSON string with cleaned parts
+    cleaned_string = ""
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            # Replace \n with spaces in parts outside "plantuml_code"
+            cleaned_string += re.sub(r'\n', ' ', part)
+        else:
+            # Keep the content of "plantuml_code" field as is
+            cleaned_string += f'"plantuml_code": "{part}"'
 
     return cleaned_string
+
+
+def format_mindmap(text):
+    # Use regular expression to find all instances of stars `*` that are not at the start
+    formatted_text = re.sub(r"(\s)\*", r"\n*", text)
+
+    # Ensure the main structure `@startmindmap` and `@endmindmap` are on their own lines
+    formatted_text = formatted_text.replace(
+        "@startmindmap", "@startmindmap\n").replace("@endumindmap", "\n@endmindmap")
+
+    # Return the formatted string
+    return formatted_text
 
 
 @app.post("/file_for_text_extract/")
@@ -248,7 +270,7 @@ async def file_for_text_extract(file: UploadFile = File(...)):
     data = clean_json_string(data)
     data = data.replace("  ", "", -1)
     data = data.replace('\n', '\\n')
-    # print(data)
+    print(data)
 
     try:
         parsed_data = json.loads(data)

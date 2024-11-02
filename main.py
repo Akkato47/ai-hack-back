@@ -174,7 +174,7 @@ try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     config_file_path = os.path.join(current_dir, 'data', 'config.ini')
     config.read(config_file_path)
-    temp_path = config.get("ENVIRONMENT", "TEMP_FOLDER_PATH")
+    temp_path = "/images"
     if not os.path.exists(temp_path):
         os.makedirs(temp_path)
     host = config.get("ENVIRONMENT", "HOST")

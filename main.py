@@ -195,6 +195,7 @@ def clean_and_merge_text(llist_file_path):
 > } 
 > ``` 
 > Обрати внимание, что текст и структура JSON должны точно соответствовать образцу. Не добавляй никаких лишних данных, комментариев или объяснений.
+> Если текст не связный или не имеет смысла, то сделай основную тему предупреждением, а plantuml_code пустой строкой
 """
 
     for page in llist_file_path:
@@ -226,7 +227,6 @@ def clean_json_string(json_string):
 
 @app.post("/file_for_text_extract/")
 async def file_for_text_extract(file: UploadFile = File(...)):
-
     file_contents = await file.read()
     base64_string = base64.b64encode(file_contents).decode()
     file_input = convert_to_json(
@@ -236,6 +236,7 @@ async def file_for_text_extract(file: UploadFile = File(...)):
     lobj_text_from_image = GetTextFromImage()
     llist_file_path = lobj_text_from_image.get_text_from_image_path(
         lstr_file_path)
+    print(llist_file_path)
     cleaned_data = clean_and_merge_text(llist_file_path=llist_file_path)
     data = send_to_giga(cleaned_data)
 
@@ -247,10 +248,10 @@ async def file_for_text_extract(file: UploadFile = File(...)):
 
     try:
         parsed_data = json.loads(data)
-
+        print(parsed_data)
         return SuccessResponse(message="Request processed successfully", data=parsed_data)
     except json.JSONDecodeError as e:
-        return ErrorResponse(message="Failed to parse JSON", error_code="JSONDecodeError")
+        raise HTTPException(status_code=400, detail="Failed to parse JSON")
 
 
 @app.post("/test_file_for_text_extract/")

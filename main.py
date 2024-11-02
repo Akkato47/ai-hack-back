@@ -12,13 +12,13 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from pydantic import BaseModel
-import fitz  # PyMuPDF
+import fitz
 import configparser
 
-# Настройка FastAPI
+
 app = FastAPI()
 
-# Настройка CORS
+
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -190,9 +190,7 @@ def clean_and_merge_text(llist_file_path):
 Преобразуй текст в JSON-формат с полями "summary" и "plantuml_code". JSON должен строго соответствовать следующей структуре: 
 > ```json 
 > { 
->   "summary": { 
->     "Основная тема": "<основная тема из текста>" 
->   }, 
+>   "summary": "<основная тема из текста>" 
 >   "plantuml_code": "@startmindmap\n* <основная тема из текста>\n** Ключевой пункт 1\n*** Подпункт 1.1\n*** Подпункт 1.2\n** Ключевой пункт 2\n*** Подпункт 2.1\n**** Детали\n*** Подпункт 2.2\n** Ключевой пункт 3\n*** Подпункт 3.1\n@endmindmap" 
 > } 
 > ``` 
@@ -240,23 +238,13 @@ async def file_for_text_extract(file: UploadFile = File(...)):
         lstr_file_path)
     cleaned_data = clean_and_merge_text(llist_file_path=llist_file_path)
     data = send_to_giga(cleaned_data)
-#     data = """```json
-# {
-#     "summary": {
-#         "Основная тема": "Сравнение операционных систем для серверов"
-#     },
-#     "plantuml_code": "@startmindmap\n* Сравнение операционных систем для серверов\n** Linux\n*** Преимущества Linux\n**** Открытый код\n**** Масштабируемость\n**** Безопасность\n** Windows Server\n*** Преимущества Windows Server\n**** Простота управления\n**** Интеграция с Мегозой-продуктами\n**** Безопасность и поддержка\n** BSD-системы\n*** Преимущества BSD-систем\n**** Надежность и стабильность\n**** Высокий уровень безопасности\n** Роль Linux в серверных системах\n** Windows Server в бизнесе\n** Критерии выбора серверной операционной системы\n** Тенденции серверных операционных систем\n** Кибербезопасность в серверных операционных системах\n** Автоматизация серверных операций\n** Будущее серверных операционных систем\n** Заключение\n@endmindmap"
-# }
-#     ```"""
 
-    # Удаление обертки ```json и ```
     data = re.sub(r"^```json|```$", "", data.strip())
 
     data = clean_json_string(data)
     data = data.replace("  ", "", -1)
     data = data.replace('\n', '\\n')
-    # Парсинг JSON-данных
-    # return SuccessResponse(message="Request processed successfully", data=data)
+
     try:
         parsed_data = json.loads(data)
 
@@ -268,9 +256,7 @@ async def file_for_text_extract(file: UploadFile = File(...)):
 @app.post("/test_file_for_text_extract/")
 async def test_file_for_text_extract(file: UploadFile = File(...)):
     mock_response = {
-        "summary": {
-            "Основная тема": "Тестовая тема"
-        },
+        "summary": "Тестовая тема",
         "plantuml_code": "@startmindmap\n* Тестовая тема\n** Тестовый ключевой пункт\n*** Подпункт 1\n@endmindmap"
     }
 

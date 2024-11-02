@@ -3,9 +3,10 @@ import json
 import logging
 import os
 import re
+import uuid
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chat_models.gigachat import GigaChat
-from typing import Optional, Union
+from typing import List, Optional, Union
 import pytesseract
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,9 @@ import configparser
 app = FastAPI()
 
 
+HISTORY_FILE = "history.json"
+
+
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -26,6 +30,44 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+try:
+    config = configparser.RawConfigParser()
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_file_path = os.path.join(current_dir, 'data', 'config.ini')
+    config.read(config_file_path)
+    temp_path = "/images"
+    if not os.path.exists(temp_path):
+        os.makedirs(temp_path)
+    host = config.get("ENVIRONMENT", "HOST")
+    port = int(config.get("ENVIRONMENT", "PORT"))
+except Exception as e:
+    print(f"Error reading configuration: {e}")
+
+
+class SuccessResponse(BaseModel):
+    success: bool = True
+    message: Optional[str] = None
+    data: Optional[Union[dict, list, str]] = None
+
+
+class ErrorResponse(BaseModel):
+    success: bool = False
+    message: str
+    error_code: Optional[str] = None
+
+
+class HistoryEntry(BaseModel):
+    uid: str
+    summary: str
+    plantuml_code: str
+
+
+class HistoryResponse(BaseModel):
+    success: bool = True
+    message: Optional[str] = None
+    data: Optional[List[HistoryEntry]] = None
 
 
 def send_to_giga(payload):
@@ -45,37 +87,30 @@ def send_to_giga(payload):
     return res.content
 
 
-def parse_response(response):
-    parsed_json = json.loads(response)
+def save_to_history(summary: str, plantuml_code: str) -> str:
+    uid = str(uuid.uuid4())
+    history_entry = {"uid": uid, "summary": summary,
+                     "plantuml_code": plantuml_code}
 
-    if parsed_json.get("success") is True:
-        data_content = parsed_json.get("data", "")
-        match = re.search(r'```json\n(.+?)\n```', data_content, re.DOTALL)
-        if match:
-            inner_json_str = match.group(1)
-            inner_json = json.loads(inner_json_str)
-
-            summary = inner_json.get("summary")
-            plantuml_code = inner_json.get("plantuml_code")
-
-            return {
-                "summary": summary,
-                "plantuml_code": plantuml_code
-            }
-
-    return None
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r") as f:
+                history = json.load(f)
+        else:
+            history = {}
+        history[uid] = history_entry
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        logging.error(f"Error saving history: {e}")
+    return uid
 
 
-class SuccessResponse(BaseModel):
-    success: bool = True
-    message: Optional[str] = None
-    data: Optional[Union[dict, list, str]] = None
-
-
-class ErrorResponse(BaseModel):
-    success: bool = False
-    message: str
-    error_code: Optional[str] = None
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    return {}
 
 
 def convert_to_json(file_name: str = None, file_format: str = None, base64_str: str = None):
@@ -168,20 +203,6 @@ class GetTextFromImage:
             logging.error(str(e), exc_info=True)
 
 
-try:
-    config = configparser.RawConfigParser()
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file_path = os.path.join(current_dir, 'data', 'config.ini')
-    config.read(config_file_path)
-    temp_path = "/images"
-    if not os.path.exists(temp_path):
-        os.makedirs(temp_path)
-    host = config.get("ENVIRONMENT", "HOST")
-    port = int(config.get("ENVIRONMENT", "PORT"))
-except Exception as e:
-    print(f"Error reading configuration: {e}")
-
-
 def clean_and_merge_text(llist_file_path):
     combined_text = []
     prompt = """
@@ -239,6 +260,25 @@ def format_mindmap(text):
     return formatted_text
 
 
+@app.get("/history/{uid}", response_model=Union[HistoryEntry, ErrorResponse])
+async def get_history(uid: str):
+    history = load_history()
+
+    if uid in history:
+        return HistoryEntry(**history[uid])
+    else:
+        raise HTTPException(status_code=404, detail="History entry not found")
+
+
+@app.get("/history", response_model=HistoryResponse)
+async def get_all_history():
+    history = load_history()
+
+    history_entries = [HistoryEntry(**entry) for entry in history.values()]
+
+    return HistoryResponse(message="History retrieved successfully", data=history_entries)
+
+
 @app.post("/file_for_text_extract/")
 async def file_for_text_extract(file: UploadFile = File(...)):
     file_contents = await file.read()
@@ -250,23 +290,25 @@ async def file_for_text_extract(file: UploadFile = File(...)):
     lobj_text_from_image = GetTextFromImage()
     llist_file_path = lobj_text_from_image.get_text_from_image_path(
         lstr_file_path)
-    print(llist_file_path)
     cleaned_data = clean_and_merge_text(llist_file_path=llist_file_path)
-    print(cleaned_data)
     data = send_to_giga(cleaned_data)
-    print(data)
 
     data = re.sub(r"^```json|```$", "", data.strip())
-
     data = clean_json_string(data)
     data = data.replace("  ", "", -1)
     data = data.replace('\n', '\\n')
-    print(data)
 
     try:
         parsed_data = json.loads(data)
-        print(parsed_data)
-        return SuccessResponse(message="Request processed successfully", data=parsed_data)
+        summary = parsed_data.get("summary", "")
+        plantuml_code = parsed_data.get("plantuml_code", "")
+
+        # Save to history and get UID
+        uid = save_to_history(summary, plantuml_code)
+
+        response_data = {"uid": uid, "summary": summary,
+                         "plantuml_code": plantuml_code}
+        return SuccessResponse(message="Request processed successfully", data=response_data)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=400, detail="Failed to parse JSON")
 

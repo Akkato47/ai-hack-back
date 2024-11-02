@@ -30,6 +30,7 @@
    [ENVIRONMENT]
    HOST = 0.0.0.0
    PORT = 8000
+   GIGACHAT_CREDENTIALS = "<ваш authorization-key>"
    ```
 
 3. **Запустите Docker Compose:**

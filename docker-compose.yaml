@@ -6,13 +6,14 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"  # Проброс порта 8000
+      - "8000:8000"
     volumes:
-      - .:/app  # Монтируем текущую директорию в контейнер
-      - /app/images  # Создание монтируемой папки для временных файлов
+      - .:/app
+      - /app/images
     environment:
-      TEMP_FOLDER_PATH: "/app/images"  # Указываем путь для временных файлов
-      HOST: "0.0.0.0"  # Хост
-      PORT: "8000"  # Порт
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]  # Запуск через fastapi dev
-    restart: unless-stopped  # Перезапускать контейнер при сбое
+      TEMP_FOLDER_PATH: "/app/images"
+      HOST: "0.0.0.0"
+      PORT: "8000" 
+      GIGACHAT_CREDENTIALS: YzdmYmZkYjMtNzgyNS00MTAzLTkxM2QtOTY0ZTdmZmNlZWZkOmEzOWE4MDQ5LTFhMGItNDEwMi04N2MxLTNlZTcwYjQyMmRhNQ==
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped

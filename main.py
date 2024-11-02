@@ -40,8 +40,10 @@ try:
     temp_path = "/images"
     if not os.path.exists(temp_path):
         os.makedirs(temp_path)
+
     host = config.get("ENVIRONMENT", "HOST")
     port = int(config.get("ENVIRONMENT", "PORT"))
+    credentials = config.get("ENVIRONMENT", "GIGACHAT_CREDENTIALS")
 except Exception as e:
     print(f"Error reading configuration: {e}")
 
@@ -303,7 +305,6 @@ async def file_for_text_extract(file: UploadFile = File(...)):
         summary = parsed_data.get("summary", "")
         plantuml_code = parsed_data.get("plantuml_code", "")
 
-        # Save to history and get UID
         uid = save_to_history(summary, plantuml_code)
 
         response_data = {"uid": uid, "summary": summary,

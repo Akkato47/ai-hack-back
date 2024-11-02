@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"  # Проброс порта 8000
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер
+      - /app/images  # Создание монтируемой папки для временных файлов
+    environment:
+      TEMP_FOLDER_PATH: "/app/images"  # Указываем путь для временных файлов
+      HOST: "0.0.0.0"  # Хост
+      PORT: "8000"  # Порт
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]  # Запуск через fastapi dev
+    restart: unless-stopped  # Перезапускать контейнер при сбое

@@ -31,7 +31,7 @@ app.add_middleware(
 
 def send_to_giga(payload):
     chat = GigaChat(credentials="YzdmYmZkYjMtNzgyNS00MTAzLTkxM2QtOTY0ZTdmZmNlZWZkOmEzOWE4MDQ5LTFhMGItNDEwMi04N2MxLTNlZTcwYjQyMmRhNQ==",
-                    scope="GIGACHAT_API_PERS", verify_ssl_certs=False)
+                    scope="GIGACHAT_API_PERS", verify_ssl_certs=False, model="GigaChat")
 
     messages = [
         SystemMessage(
@@ -186,7 +186,6 @@ except Exception as e:
 def clean_and_merge_text(llist_file_path):
     combined_text = []
     prompt = """
-Добавь к этому тексту следующий промпт в начале: 
 Преобразуй текст в JSON-формат с полями "summary" и "plantuml_code". JSON должен строго соответствовать следующей структуре: 
 > ```json 
 > { 
@@ -195,8 +194,10 @@ def clean_and_merge_text(llist_file_path):
 > } 
 > ``` 
 > Обрати внимание, что текст и структура JSON должны точно соответствовать образцу. Не добавляй никаких лишних данных, комментариев или объяснений.
-> Если текст не связный или не имеет смысла, то сделай основную тему предупреждением, а plantuml_code пустой строкой
+> Если текст не связный или не имеет смысла, то сделай основную тему предупреждением, а plantuml_code пустой строкой.
+> Переносы строк должны обозначаться через \n
 """
+# > Символ * влияет на уровень, ты можешь использовать не ограниченное их количество для визуализации mindmap
 
     for page in llist_file_path:
         text = page.get('text', '')
@@ -238,13 +239,16 @@ async def file_for_text_extract(file: UploadFile = File(...)):
         lstr_file_path)
     print(llist_file_path)
     cleaned_data = clean_and_merge_text(llist_file_path=llist_file_path)
+    print(cleaned_data)
     data = send_to_giga(cleaned_data)
+    print(data)
 
     data = re.sub(r"^```json|```$", "", data.strip())
 
     data = clean_json_string(data)
     data = data.replace("  ", "", -1)
     data = data.replace('\n', '\\n')
+    # print(data)
 
     try:
         parsed_data = json.loads(data)

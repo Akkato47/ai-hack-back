@@ -79,7 +79,7 @@ class HistoryResponse(BaseModel):
 
 def send_to_giga(payload):
     # OTM2NDRlNDgtMmNkYi00YWZhLThiZTktYjE0YTk2YzkzYzY4OjQ5ZGNhMzVkLTg1OTMtNDZlYy05YmIwLTA5OTQ4MzczMGUwOA==
-    chat = GigaChat(credentials="OTM2NDRlNDgtMmNkYi00YWZhLThiZTktYjE0YTk2YzkzYzY4OjQ5ZGNhMzVkLTg1OTMtNDZlYy05YmIwLTA5OTQ4MzczMGUwOA==",
+    chat = GigaChat(credentials="<ваш authorization-key>",
                     scope="GIGACHAT_API_PERS", verify_ssl_certs=False, model="GigaChat")
 
     messages = [

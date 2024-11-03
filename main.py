@@ -4,8 +4,10 @@ import logging
 import os
 import re
 import uuid
+from datetime import datetime
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chat_models.gigachat import GigaChat
+from langchain.chat_models.yandex import ChatYandexGPT
 from typing import List, Optional, Union
 import pytesseract
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -63,6 +65,7 @@ class ErrorResponse(BaseModel):
 class HistoryEntry(BaseModel):
     uid: str
     summary: str
+    timestamp: str
     plantuml_code: str
 
 
@@ -91,8 +94,13 @@ def send_to_giga(payload):
 
 def save_to_history(summary: str, plantuml_code: str) -> str:
     uid = str(uuid.uuid4())
-    history_entry = {"uid": uid, "summary": summary,
-                     "plantuml_code": plantuml_code}
+    timestamp = datetime.now().isoformat()
+    history_entry = {
+        "uid": uid,
+        "timestamp": timestamp,
+        "summary": summary,
+        "plantuml_code": plantuml_code
+    }
 
     try:
         if os.path.exists(HISTORY_FILE):
@@ -101,10 +109,12 @@ def save_to_history(summary: str, plantuml_code: str) -> str:
         else:
             history = {}
         history[uid] = history_entry
+        
         with open(HISTORY_FILE, "w") as f:
             json.dump(history, f, ensure_ascii=False, indent=4)
     except Exception as e:
         logging.error(f"Error saving history: {e}")
+    
     return uid
 
 
@@ -220,6 +230,8 @@ def clean_and_merge_text(llist_file_path):
 > Переносы строк должны обозначаться СТРОГО через \n. НЕ ОСТАВЛЯЙ ПУСТЫХ СТРОК НА МЕСТЕ ПЕРЕНОСА СТРОК
 > НЕ ЗАБЫВАЙ ЗАКРЫВАТЬ ФИГУРНЫЕ СКОБКИ JSON. ВНИМАТЕЛЬНО ПРОВЕРЯЙ ЕГО ПРАВЕЛЬНОСТЬ!
 > Символ * влияет на уровень, ты можешь использовать не ограниченное их количество для визуализации mindmap
+> Используй тот язык, который был дан в тексте.
+> Сам текст предоставлен ниже. Следуй инструкциям четко и без самовольства
 """
 
     for page in llist_file_path:

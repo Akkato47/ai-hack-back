@@ -78,7 +78,8 @@ class HistoryResponse(BaseModel):
 
 
 def send_to_giga(payload):
-    chat = GigaChat(credentials="YzdmYmZkYjMtNzgyNS00MTAzLTkxM2QtOTY0ZTdmZmNlZWZkOmEzOWE4MDQ5LTFhMGItNDEwMi04N2MxLTNlZTcwYjQyMmRhNQ==",
+    # OTM2NDRlNDgtMmNkYi00YWZhLThiZTktYjE0YTk2YzkzYzY4OjQ5ZGNhMzVkLTg1OTMtNDZlYy05YmIwLTA5OTQ4MzczMGUwOA==
+    chat = GigaChat(credentials="OTM2NDRlNDgtMmNkYi00YWZhLThiZTktYjE0YTk2YzkzYzY4OjQ5ZGNhMzVkLTg1OTMtNDZlYy05YmIwLTA5OTQ4MzczMGUwOA==",
                     scope="GIGACHAT_API_PERS", verify_ssl_certs=False, model="GigaChat")
 
     messages = [
@@ -229,16 +230,15 @@ def clean_and_merge_text(llist_file_path):
 > 
 > { 
 >   "summary": "<основная тема из текста>" 
->   "plantuml_code": "@startmindmap\n* <основная тема из текста>\n** Ключевой пункт 1\n*** Подпункт 1.1\n*** Подпункт 1.2\n** Ключевой пункт 2\n*** Подпункт 2.1\n**** Детали\n*** Подпункт 2.2\n** Ключевой пункт 3\n*** Подпункт 3.1\n@endmindmap" 
+>   "plantuml_code": "@startmindmap\n* Операционные системы для серверов\n** Linux\n*** Преимущества\n**** Открытый код\n**** Масштабируемость\n**** Безопасность\n*** Применение\n**** Облачные вычисления\n***** Контейнеризация\n***** Виртуализация\n** Windows Server\n*** Преимущества\n**** Простота управления\n**** Интеграция с продуктами Microsoft\n*** Недостатки\n**** Лицензирование\n** BSD-системы\n*** Основные представители\n**** FreeBSD\n**** NetBSD\n**** OpenBSD\n*** Преимущества\n**** Надежность и стабильность\n**** Высокий уровень безопасности\n**** Масштабируемость\n*** Сферы применения\n**** Маршрутизация\n***** Сетевые решения\n** Критерии выбора серверной операционной системы\n*** Производительность\n*** Безопасность\n*** Стоимость владения\n*** Совместимость\n*** Поддержка и обновления\n** Тенденции серверных операционных систем\n*** Облачные решения\n**** Контейнеризация и микросервисы\n**** Интеграция с облачными платформами\n**** Автоматизация и DevOps\n*** Кибербезопасность в серверных операционных системах\n**** Linux\n**** Windows Server\n**** BSD-системы\n*** Автоматизация серверных операций\n**** Инструменты автоматизации\n***** DevOps и CI/CD\n**** Контейнеризация\n**** Мониторинг и самовосстановление\n**** Infrastructure as Code\n** Будущее серверных ОС\n*** Облачные нативные OC\n**** Квантовые вычисления\n**** Искусственный интеллект\n**** Serverless\n** Заключение\n*** Лидерство Linux\n**** Популярность Windows Server\n**** Стабильность BSD-систем\n*** Современные тенденции\n**** Облачные решения\n**** Контейнеризация\n**** Автоматизация\n*** Будущее серверных ОС\n@endmindmap" 
 > } 
 > 
 > Обрати внимание, что текст и структура JSON должны точно соответствовать образцу. Не добавляй никаких лишних данных, комментариев или объяснений.
-> Если текст не связный или не имеет смысла, то сделай основную тему предупреждением, а plantuml_code пустой строкой.
 > Переносы строк должны обозначаться СТРОГО через \n. НЕ ОСТАВЛЯЙ ПУСТЫХ СТРОК НА МЕСТЕ ПЕРЕНОСА СТРОК
 > НЕ ЗАБЫВАЙ ЗАКРЫВАТЬ ФИГУРНЫЕ СКОБКИ JSON. ВНИМАТЕЛЬНО ПРОВЕРЯЙ ЕГО ПРАВЕЛЬНОСТЬ!
-> Символ * влияет на уровень, ты можешь использовать не ограниченное их количество для визуализации mindmap
-> Используй тот язык, который был дан в тексте.
-> Сам текст предоставлен ниже. Следуй инструкциям четко и без самовольства
+> Символы * ДОЛЖНЫ! идти последовательно, например после ** не может идти ****, а должно идти либо ** либо ***
+> ЕЩЕ РАЗ ПРОВЕРЯЙ, ЧТО ТЫ МНЕ ОТПРАВЛЯЕШЬ!!! ВСЕ ИНСТРУКЦИИ ВЫШЕ ОБЯЗАТЕЛЬНЫ
+> СОКРАТИ ЕСЛИ НУЖНО ДО 4 главных выводов!
 """
 
     for page in llist_file_path:
@@ -258,8 +258,19 @@ def clean_and_merge_text(llist_file_path):
 
 
 def clean_json_string(json_string):
-    json_string = json_string.replace('\n', ' ').replace('  ', ' ')
-    return json_string
+    pattern = r'"plantuml_code":\s*"([^"]*?)"'
+
+    parts = re.split(pattern, json_string)
+
+    cleaned_string = ""
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            cleaned_string += re.sub(r'\n', ' ', part)
+        else:
+            cleaned_string += f'"plantuml_code": "{part}"'
+
+    return cleaned_string
+
 
 
 
@@ -304,6 +315,7 @@ async def file_for_text_extract(file: UploadFile = File(...)):
         lstr_file_path)
     cleaned_data = clean_and_merge_text(llist_file_path=llist_file_path)
     data = send_to_giga(cleaned_data)
+    print(data)
 
     data = re.sub(r"^```json|```$", "", data.strip())
     data = clean_json_string(data)

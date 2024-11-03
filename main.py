@@ -293,12 +293,18 @@ async def get_history(uid: str):
         raise HTTPException(status_code=404, detail="History entry not found")
 
     
+class UpdatePlantUMLRequest(BaseModel):
+    new_code: str
+
 @app.put("/history/{uid}", response_model=Union[HistoryEntry, ErrorResponse])
-async def update_history_entry(uid: str, new_code: str):
+async def update_history_entry(uid: str, request: UpdatePlantUMLRequest):
+    """
+    Updates the plantuml_code of a history entry with the specified UID.
+    """
     history = load_history()
 
     if uid in history:
-        history[uid]["plantuml_code"] = new_code
+        history[uid]["plantuml_code"] = request.new_code
 
         try:
             with open(HISTORY_FILE, "w", encoding="utf-8") as f:

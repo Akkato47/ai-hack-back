@@ -291,6 +291,27 @@ async def get_history(uid: str):
         return HistoryEntry(**history[uid])
     else:
         raise HTTPException(status_code=404, detail="History entry not found")
+    
+@app.put("/history/{uid}", response_model=Union[HistoryEntry, ErrorResponse])
+async def update_history_entry(uid: str, new_code: str):
+    """
+    Updates the `plantuml_code` for a given UID in history.
+    """
+    history = load_history()
+
+    if uid in history:
+        history[uid]["plantuml_code"] = new_code
+
+        try:
+            with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, ensure_ascii=False, indent=4)
+            return HistoryEntry(**history[uid])
+        except Exception as e:
+            logging.error(f"Error updating history: {e}")
+            raise HTTPException(status_code=500, detail="Failed to update history entry")
+    else:
+        raise HTTPException(status_code=404, detail="History entry not found")
+
 
 
 @app.get("/history", response_model=HistoryResponse)

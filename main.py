@@ -7,7 +7,6 @@ import uuid
 from datetime import datetime
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chat_models.gigachat import GigaChat
-from langchain.chat_models.yandex import ChatYandexGPT
 from typing import List, Optional, Union
 import pytesseract
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -24,7 +23,10 @@ app = FastAPI()
 HISTORY_FILE = "history.json"
 
 
-origins = ["*"]
+origins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -110,8 +112,9 @@ def save_to_history(summary: str, plantuml_code: str) -> str:
             history = {}
         history[uid] = history_entry
         
-        with open(HISTORY_FILE, "w") as f:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=4)
+
     except Exception as e:
         logging.error(f"Error saving history: {e}")
     
@@ -120,8 +123,12 @@ def save_to_history(summary: str, plantuml_code: str) -> str:
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except UnicodeDecodeError:
+            with open(HISTORY_FILE, "r", encoding="latin-1") as f:
+                return json.load(f)
     return {}
 
 
@@ -251,18 +258,9 @@ def clean_and_merge_text(llist_file_path):
 
 
 def clean_json_string(json_string):
-    pattern = r'"plantuml_code":\s*"([^"]*?)"'
+    json_string = json_string.replace('\n', ' ').replace('  ', ' ')
+    return json_string
 
-    parts = re.split(pattern, json_string)
-
-    cleaned_string = ""
-    for i, part in enumerate(parts):
-        if i % 2 == 0:
-            cleaned_string += re.sub(r'\n', ' ', part)
-        else:
-            cleaned_string += f'"plantuml_code": "{part}"'
-
-    return cleaned_string
 
 
 def format_mindmap(text):
